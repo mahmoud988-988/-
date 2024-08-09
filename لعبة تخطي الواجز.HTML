@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة تجنب الحواجز</title>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        #menu {
+            text-align: center;
+        }
+
+        #menu h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        #startButton, #settingsButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        #startButton:hover, #settingsButton:hover {
+            background-color: #2980b9;
+        }
+
+        #gameArea, #settingsArea {
+            position: relative;
+            width: 600px;
+            height: 800px;
+            background-color: #fff;
+            border: 2px solid #000;
+            overflow: hidden;
+            display: none;
+        }
+
+        #player {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: #3498db;
+            bottom: 10px;
+            left: 275px;
+        }
+
+        .obstacle {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: #e74c3c;
+            top: 0;
+        }
+
+        #score, #highScore {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #highScore {
+            top: 30px;
+        }
+
+        #restartButton, #pauseButton, #applySettingsButton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #restartButton:hover, #pauseButton:hover, #applySettingsButton:hover {
+            background-color: #2980b9;
+        }
+
+        #restartButton {
+            display: none;
+        }
+
+        #pauseButton {
+            top: 10px;
+            left: 10px;
+            transform: translate(0, 0);
+        }
+
+        #settingsArea {
+            display: none;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #settingsArea label {
+            display: block;
+            margin: 10px 0;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .control-button {
+            width: 60px;
+            height: 60px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-button:hover {
+            background-color: #2980b9;
+        }
+
+        #jumpButton {
+            background-color: #e74c3c;
+        }
+
+        #jumpButton:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<div id="menu">
+    <h1>لعبة تجنب الحواجز</h1>
+    <button id="startButton" onclick="showGame()">ابدأ اللعبة</button>
+    <button id="settingsButton" onclick="showSettings()">الإعدادات</button>
+</div>
+
+<div id="gameArea">
+    <div id="player"></div>
+    <div id="score">Score: 0</div>
+    <div id="highScore">High Score: 0</div>
+    <button id="restartButton" onclick="restartGame()">إعادة</button>
+    <button id="pauseButton" onclick="togglePause()">إيقاف مؤقت</button>
+    <div id="controls">
+        <button class="control-button" onclick="movePlayer(-20)">&#9664;</button>
+        <button class="control-button" id="jumpButton" onclick="startJump()">&#9650;</button>
+        <button class="control-button" onclick="movePlayer(20)">&#9654;</button>
+    </div>
+</div>
+
+<div id="settingsArea">
+    <h2>الإعدادات</h2>
+    <label>
+        حجم الصوت:
+        <input type="range" id="volumeControl" min="0" max="1" step="0.1" value="0.5">
+    </label>
+    <label>
+        سرعة اللعبة:
+        <input type="range" id="speedControl" min="1" max="20" step="1" value="5">
+    </label>
+    <label>
+        ارتفاع القفز:
+        <input type="range" id="jumpHeightControl" min="50" max="200" step="10" value="100">
+    </label>
+    <button id="applySettingsButton" onclick="applySettings()">تطبيق الإعدادات</button>
+    <button onclick="showMenu()">الرجوع</button>
+</div>
+
+<audio id="jumpSound" src="jump.mp3"></audio>
+<audio id="collisionSound" src="collision.mp3"></audio>
+<audio id="gameOverSound" src="gameover.mp3"></audio>
+<audio id="backgroundMusic" src="background.mp3" loop></audio>
+
+<script>
+    const player = document.getElementById('player');
+    const gameArea = document.getElementById('gameArea');
+    const scoreElement = document.getElementById('score');
+    const highScoreElement = document.getElementById('highScore');
+    const restartButton = document.getElementById('restartButton');
+    const pauseButton = document.getElementById('pauseButton');
+    const menu = document.getElementById('menu');
+    const settingsArea = document.getElementById('settingsArea');
+    const applySettingsButton = document.getElementById('applySettingsButton');
+    const volumeControl = document.getElementById('volumeControl');
+    const speedControl = document.getElementById('speedControl');
+    const jumpHeightControl = document.getElementById('jumpHeightControl');
+    const jumpSound = document.getElementById('jumpSound');
+    const collisionSound = document.getElementById('collisionSound');
+    const gameOverSound = document.getElementById('gameOverSound');
+    const backgroundMusic = document.getElementById('backgroundMusic');
+
+    let playerLeft = 275;
+    let playerBottom = 10;
+    let isJumping = false;
+    let jumpHeight = 100;
+    let jumpSpeed = 10;
+    let gravity = 2;
+    let obstacles = [];
+    let score = 0;
+    let highScore = localStorage.getItem('highScore') || 0;
+    let gameInterval, obstacleInterval;
+    let isPaused = false;
+    let currentLevel = 1;
+    let obstaclesPerLevel = 5;
+    let obstaclesCount = 0;
+    let levelUpScore = 10;
+
+    function showGame() {
+        menu.style.display = 'none';
+        settingsArea.style.display = 'none';
+        gameArea.style.display = 'block';
+        startGame();
+    }
+
+    function showSettings() {
+        menu.style.display = 'none';
+        gameArea.style.display = 'none';
+        settingsArea.style.display = 'block';
+    }
+
+    function showMenu() {
+        menu.style.display = 'block';
+        settingsArea.style.display = 'none';
+        gameArea.style.display = 'none';
+    }
+
+    function applySettings() {
+        backgroundMusic.volume = volumeControl.value;
+        jumpSpeed = parseInt(speedControl.value);
+        jumpHeight = parseInt(jumpHeightControl.value);
+        showGame();
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'ArrowLeft' && playerLeft > 0 && !isPaused) {
+            movePlayer(-20);
+        } else if (event.key === 'ArrowRight' && playerLeft < 550 && !isPaused) {
+            movePlayer(20);
+        } else if (event.key === ' ' && !isJumping && !isPaused) {
+            startJump();
+        }
+    });
+
+    function movePlayer(distance) {
+        if (!isPaused) {
+            playerLeft += distance;
+            if (playerLeft < 0) playerLeft = 0;
+            if (playerLeft > 550) playerLeft = 550;
+            player.style.left = playerLeft + 'px';
+            playSound(jumpSound);
+        }
+    }
+
+    function startJump() {
+        if (!isPaused) {
+            isJumping = true;
+            let jumpUpInterval = setInterval(() => {
+                playerBottom += jumpSpeed;
+                if (playerBottom >= jumpHeight) {
+                    clearInterval(jumpUpInterval);
+                    let jumpDownInterval = setInterval(() => {
+                        playerBottom -= jumpSpeed;
+                        if (playerBottom <= 10) {
+                            clearInterval(jumpDownInterval);
+                            playerBottom = 10;
+                            isJumping = false;
+                        }
+                        player.style.bottom = playerBottom + 'px';
+                    }, 20);
+                }
+                player.style.bottom = playerBottom + 'px';
+            }, 20);
+            playSound(jumpSound);
+        }
+    }
+
+    function startGame() {
+        if (isPaused) {
+            togglePause();
+        }
+
+        clearGame();
+        backgroundMusic.play();
+        gameInterval = setInterval(moveObstacles, 20);
+        obstacleInterval = setInterval(createObstacle, 2000);
+        restartButton.style.display = 'none';
+        score = 0;
+        currentLevel = 1;
+        obstaclesPerLevel = 5;
+        obstaclesCount = 0;
+        levelUpScore = 10;
+        updateScore();
+    }
+
+    function clearGame() {
+        clearInterval(gameInterval);
+        clearInterval(obstacleInterval);
+        obstacles.forEach(obstacle => obstacle.remove());
+        obstacles = [];
+    }
+
+    function createObstacle() {
+        if (!isPaused) {
+            const obstacle = document.createElement('div');
+            obstacle.classList.add('obstacle');
+            obstacle.style.left = Math.floor(Math.random() * 550) + 'px';
+            gameArea.appendChild(obstacle);
+            obstacles.push(obstacle);
+            obstaclesCount++;
+        }
+    }
+
+    function moveObstacles() {
+        if (!isPaused) {
+            for (let i = 0; i < obstacles.length; i++) {
+                let obstacleTop = obstacles[i].offsetTop;
+                obstacles[i].style.top = obstacleTop + 5 + 'px';
+
+                if (checkCollision(player, obstacles[i])) {
+                    playSound(collisionSound);
+                    endGame();
+                    return;
+                }
+
+                if (obstacleTop > 800) {
+                    obstacles[i].remove();
+                    obstacles.splice(i, 1);
+                    score++;
+                    obstaclesCount--;
+                    updateScore();
+                    if (score % levelUpScore === 0) {
+                        levelUp();
+                    }
+                }
+            }
+        }
+    }
+
+    function checkCollision(player, obstacle) {
+        const playerRect = player.getBoundingClientRect();
+        const obstacleRect = obstacle.getBoundingClientRect();
+
+        return !(
+            playerRect.top > obstacleRect.bottom ||
+            playerRect.bottom < obstacleRect.top ||
+            playerRect.left > obstacleRect.right ||
+            playerRect.right < obstacleRect.left
+        );
+    }
+
+    function updateScore() {
+        scoreElement.textContent = 'Score: ' + score;
+        highScoreElement.textContent = 'High Score: ' + highScore;
+    }
+
+    function levelUp() {
+        currentLevel++;
+        obstaclesPerLevel += 2;
+        levelUpScore += 10;
+        alert('مبروك! وصلت إلى المستوى ' + currentLevel);
+    }
+
+    function endGame() {
+        clearInterval(gameInterval);
+        clearInterval(obstacleInterval);
+        playSound(gameOverSound);
+        backgroundMusic.pause();
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+        }
+        updateScore();
+        restartButton.style.display = 'block';
+        alert('Game Over! Your score is: ' + score);
+    }
+
+    function restartGame() {
+        clearGame();
+        playerLeft = 275;
+        playerBottom = 10;
+        player.style.left = playerLeft + 'px';
+        player.style.bottom = playerBottom + 'px';
+        isPaused = false;
+        pauseButton.textContent = "إيقاف مؤقت";
+        showGame();
+    }
+
+    function togglePause() {
+        if (isPaused) {
+            gameInterval = setInterval(moveObstacles, 20);
+            obstacleInterval = setInterval(createObstacle, 2000);
+            backgroundMusic.play();
+            pauseButton.textContent = "إيقاف مؤقت";
+            gameArea.style.display = 'block';
+        } else {
+            clearInterval(gameInterval);
+            clearInterval(obstacleInterval);
+            backgroundMusic.pause();
+            pauseButton.textContent = "استئناف";
+            gameArea.style.display = 'none';
+            showMenu();
+        }
+        isPaused = !isPaused;
+    }
+
+    function playSound(sound) {
+        sound.currentTime = 0;
+        sound.play();
+    }
+
+    // إضافة دعم للتحكم باللمس
+    function setupTouchControls() {
+        document.getElementById('controls').addEventListener('touchstart', function(event) {
+            const touch = event.touches[0];
+            if (touch.clientX < window.innerWidth / 3) {
+                movePlayer(-20);
+            } else if (touch.clientX > 2 * window.innerWidth / 3) {
+                movePlayer(20);
+            } else if (touch.clientY < window.innerHeight / 2) {
+                startJump();
+            }
+        });
+    }
+
+    setupTouchControls();
+</script>
+
+</body>
+</html>
